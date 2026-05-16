@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("ghostAI", {
   sendTranscription: (text: string, source: string) =>
     ipcRenderer.invoke("audio:transcription", text, source),
   getAudioSources: () => ipcRenderer.invoke("audio:get-sources"),
+  transcribeAudio: (base64: string) => ipcRenderer.invoke("audio:transcribe", base64),
 
   // Window control
   setFocusable: (focusable: boolean) => ipcRenderer.invoke("window:set-focusable", focusable),

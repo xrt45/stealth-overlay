@@ -32,17 +32,11 @@ function MessageItem({ msg }: { msg: Message }) {
 export function Messages() {
   const msgs = lastMessages.value;
   if (msgs.length === 0) {
-    return (
-      <div style={{ padding: "16px 0", textAlign: "center", opacity: 0.35, fontSize: "12px" }}>
-        No messages yet.<br />
-        Type a question, use voice, or take a screenshot to start.
-      </div>
-    );
+    return null;
   }
   return (
     <div style={{
       flex: 1,
-      maxHeight: "350px",
       overflowY: "auto",
       paddingRight: "4px",
     }}>

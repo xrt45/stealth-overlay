@@ -1,14 +1,13 @@
 import { render } from "preact";
-import { useRef } from "preact/hooks";
+import { useRef, useEffect } from "preact/hooks";
 import { Messages } from "./components/Messages";
 import { Settings } from "./components/Settings";
-import { StatusBar } from "./components/StatusBar";
 import { ToolBar } from "./components/ToolBar";
 import {
   overlayOpacity, isPrivate, showSettings,
   addMessage, appendToMessage, finishMessage,
   isListeningVoice, primaryLanguage, languages, streamingMessageId,
-  panelX, panelY, panelW, panelH,
+  panelX, panelY, panelW, panelH, chatInputText, pendingVoiceSubmit, themeMode,
 } from "./state/store";
 import { startListening, stopListening } from "./hooks/useAudio";
 const gai = (window as any).ghostAI;
@@ -17,6 +16,10 @@ if (gai) {
   gai.on("overlay:private-mode", (val: boolean) => { isPrivate.value = val; });
   gai.on("action:toggle-settings", () => { showSettings.value = !showSettings.value; });
   gai.on("action:close-settings", () => { showSettings.value = false; });
+  gai.on("action:toggle-mic", () => {
+    toggleListening();
+    isListeningVoice.value = !isListeningVoice.value;
+  });
   gai.on("action:screenshot", async () => {
     const msgId = addMessage("screenshot", "Analyzing screen...");
     try {
@@ -35,8 +38,14 @@ if (gai) {
     const msgId = addMessage("voice", data.text);
     try {
       const result = await gai.askAI(data.text);
-      if (result) finishMessage(msgId, result.provider);
-    } catch { finishMessage(msgId, "error"); }
+      if (result) {
+        if (!result.answer || result.answer === "") appendToMessage(msgId, "No response from AI.");
+        finishMessage(msgId, result.provider);
+      }
+    } catch (e: any) {
+      appendToMessage(msgId, "Error: " + (e?.message || "Unknown error"));
+      finishMessage(msgId, "error");
+    }
   });
   gai.on("screenshot:analysis", (result: any) => {
     if (result?.answer) {
@@ -60,6 +69,38 @@ if (gai) {
     else if (s.voiceEnabled === false && isListeningVoice.value) { stopListening(); isListeningVoice.value = false; }
   });
 }
+
+// Keyboard controls: Arrow keys = move, Shift+Arrow = resize (20px steps)
+function useKeyboardControls() {
+  useEffect(() => {
+    const STEP = 20;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+      const shift = e.shiftKey;
+      switch (e.key) {
+        case "ArrowLeft":
+          if (shift) panelW.value = Math.max(250, panelW.value - STEP);
+          else panelX.value = Math.max(0, panelX.value - STEP);
+          e.preventDefault(); break;
+        case "ArrowRight":
+          if (shift) panelW.value = panelW.value + STEP;
+          else panelX.value = Math.min(window.innerWidth - 100, panelX.value + STEP);
+          e.preventDefault(); break;
+        case "ArrowUp":
+          if (shift) panelH.value = Math.max(200, panelH.value - STEP);
+          else panelY.value = Math.max(0, panelY.value - STEP);
+          e.preventDefault(); break;
+        case "ArrowDown":
+          if (shift) panelH.value = panelH.value + STEP;
+          else panelY.value = Math.min(window.innerHeight - 100, panelY.value + STEP);
+          e.preventDefault(); break;
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+}
+
 function useDrag() {
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
@@ -107,39 +148,56 @@ function useResize() {
 }
 function ChatInput() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastSubmitRef = useRef(0);
   const onSend = async () => {
-    const text = inputRef.current?.value?.trim();
+    const text = chatInputText.value.trim() || inputRef.current?.value?.trim();
     if (!text) return;
-    inputRef.current!.value = "";
+    chatInputText.value = "";
+    if (inputRef.current) inputRef.current.value = "";
     const msgId = addMessage("manual", text);
     try {
       const result = await gai?.askAI(text);
       if (result) finishMessage(msgId, result.provider);
     } catch { finishMessage(msgId, "error"); }
   };
+  // Auto-submit when voice transcription produces a final result
+  useEffect(() => {
+    if (pendingVoiceSubmit.value > 0 && pendingVoiceSubmit.value !== lastSubmitRef.current) {
+      lastSubmitRef.current = pendingVoiceSubmit.value;
+      onSend();
+    }
+  }, [pendingVoiceSubmit.value]);
+  // Sync chatInputText signal to input element
+  useEffect(() => {
+    if (inputRef.current && chatInputText.value !== inputRef.current.value) {
+      inputRef.current.value = chatInputText.value;
+    }
+  }, [chatInputText.value]);
   return (
-    <div style={{ display: "flex", gap: "6px", padding: "4px 14px 2px" }}>
+    <div style={{ display: "flex", gap: "4px", padding: "3px 10px 2px" }}>
       <input
         ref={inputRef}
         placeholder="Ask AI anything..."
         onKeyDown={(e: any) => { if (e.key === "Enter") onSend(); }}
+        onInput={(e: any) => { chatInputText.value = e.target.value; }}
         style={{
-          flex: 1, padding: "7px 10px", fontSize: "12px",
-          background: "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: "6px", color: "#eee", outline: "none",
+          flex: 1, padding: "5px 8px", fontSize: "11px",
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: "4px", color: "#eee", outline: "none",
         }}
       />
       <button
         onClick={onSend}
         style={{
-          padding: "6px 12px", fontSize: "12px", fontWeight: 600,
-          background: "rgba(124,111,255,0.3)",
-          border: "1px solid rgba(124,111,255,0.5)",
-          borderRadius: "6px", color: "#fff", cursor: "pointer",
+          padding: "4px 6px", fontSize: "12px",
+          background: "rgba(255,255,255,0.08)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: "4px", color: "rgba(255,255,255,0.6)",
+          lineHeight: 1,
         }}
       >
-        Send
+        {"\u27A4"}
       </button>
     </div>
   );
@@ -148,6 +206,7 @@ function ChatInput() {
 function App() {
   const drag = useDrag();
   const resize = useResize();
+  useKeyboardControls();
   return (
     <div
       onMouseEnter={() => gai?.setFocusable(true)}
@@ -163,7 +222,7 @@ function App() {
         WebkitBackdropFilter: "blur(12px)",
         borderRadius: "12px",
         border: "1px solid rgba(255,255,255,0.08)",
-        color: "#e0e0e0",
+        color: themeMode.value === "dark" ? "#e0e0e0" : "#1a1a1a",
         fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
         fontSize: "13px",
         display: "flex",
@@ -171,6 +230,7 @@ function App() {
         boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
         pointerEvents: "auto",
         overflow: "hidden",
+        cursor: "none",
       }}
     >
       {/* Drag Handle (Header) */}
@@ -178,54 +238,42 @@ function App() {
         onMouseDown={drag.onMouseDown as any}
         style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "10px 14px 6px", cursor: "grab", userSelect: "none",
+          padding: "4px 10px 3px", userSelect: "none",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        <span style={{ color: "#7c6fff", fontWeight: "bold", fontSize: "14px" }}>
-          {"\u{1F47B}"} Ghost AI
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "9px", opacity: 0.3 }}>drag to move</span>
-          <button
+        <span style={{ fontSize: "9px", opacity: 0.3 }}>drag</span>
+        <button
             onClick={() => gai?.quit()}
             style={{
-              background: "rgba(255,80,80,0.15)",
-              border: "1px solid rgba(255,80,80,0.3)",
-              borderRadius: "50%",
-              width: "20px",
-              height: "20px",
+              background: "none",
+              border: "none",
               cursor: "pointer",
-              color: "rgba(255,100,100,0.8)",
-              fontSize: "12px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
+              color: "rgba(255,100,100,0.6)",
+              fontSize: "11px",
+              padding: "2px 4px",
               lineHeight: 1,
             }}
-            title="Close Ghost AI"
+            title="Close"
           >
             {"\u2715"}
           </button>
-        </div>
       </div>
       {/* Messages Area */}
-      <div style={{ flex: 1, overflow: "auto", padding: "8px 14px" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "4px 10px" }}>
         <Messages />
       </div>
       {/* Settings Panel */}
       {showSettings.value && (
-        <div style={{ padding: "0 14px", maxHeight: "40%", overflow: "auto" }}>
+        <div style={{ padding: "0 10px", maxHeight: "40%", overflow: "auto" }}>
           <Settings />
         </div>
       )}
       {/* Chat Input */}
       <ChatInput />
       {/* Bottom Toolbar */}
-      <div style={{ padding: "4px 14px 10px" }}>
+      <div style={{ padding: "2px 10px 6px" }}>
         <ToolBar />
-        <StatusBar />
       </div>
       {/* Resize Handle */}
       <div
@@ -233,7 +281,6 @@ function App() {
         style={{
           position: "absolute", bottom: "0", right: "0",
           width: "18px", height: "18px",
-          cursor: "nwse-resize",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: "10px", opacity: 0.25, userSelect: "none",
         }}

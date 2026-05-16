@@ -2,7 +2,7 @@ import { AIProvider, ChatMessage } from "./types";
 import { getSetting } from "../settings";
 import { net } from "electron";
 
-const BASE_URL = "https://models.inference.ai.github.com";
+const BASE_URL = "https://models.github.ai/inference";
 
 export class GitHubModelsProvider implements AIProvider {
   name = "github";
@@ -16,7 +16,8 @@ export class GitHubModelsProvider implements AIProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.token}`,
+        "Authorization": `Bearer ${this.token}`,
+        "Accept": "application/vnd.github+json",
       },
       body: JSON.stringify({ model: this.model, messages, stream: false }),
     });
@@ -36,7 +37,8 @@ export class GitHubModelsProvider implements AIProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.token}`,
+        "Authorization": `Bearer ${this.token}`,
+        "Accept": "application/vnd.github+json",
       },
       body: JSON.stringify({
         model: this.model,

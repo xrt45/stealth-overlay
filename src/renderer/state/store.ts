@@ -14,13 +14,16 @@ export const isPrivate = signal(true);
 export const showSettings = signal(false);
 export const isListeningVoice = signal(false);
 export const activeProvider = signal("none");
-export const primaryLanguage = signal("English");
-export const languages = signal<string[]>(["English"]);
+export const primaryLanguage = signal("JavaScript");
+export const languages = signal<string[]>(["Java", "JavaScript", "TypeScript", "Angular", "React", "HTML", "CSS", "Node.js", "Python", "AWS", "Docker", "SQL", "Spring Boot", "REST API", "Git"]);
 export const streamingMessageId = signal<string | null>(null);
 export const panelX = signal(typeof window !== "undefined" ? window.innerWidth - 400 : 100);
 export const panelY = signal(20);
 export const panelW = signal(380);
 export const panelH = signal(520);
+export const chatInputText = signal("");
+export const pendingVoiceSubmit = signal(0);
+export const themeMode = signal<"dark" | "light">("dark");
 export const lastMessages = computed(() => messages.value.slice(-30));
 export function addMessage(source: Message["source"], input: string): string {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

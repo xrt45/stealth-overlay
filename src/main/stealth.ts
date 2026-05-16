@@ -7,16 +7,17 @@ export function applyStealth(win: BrowserWindow): void {
   // 2. Click-through — mouse passes to apps below, forward hover events
   win.setIgnoreMouseEvents(true, { forward: true });
 
-  // 3. Highest always-on-top level
+  // 3. Highest always-on-top level + periodic re-assertion
   if (process.platform === "win32") {
     win.setAlwaysOnTop(true, "screen-saver", 1);
-    // Re-assert every second (Windows apps can steal z-order)
+    // Re-assert stealth properties every second (Windows can reset them)
     const interval = setInterval(() => {
       if (win.isDestroyed()) {
         clearInterval(interval);
         return;
       }
       win.setAlwaysOnTop(true, "screen-saver", 1);
+      win.setContentProtection(true);
     }, 1000);
   } else {
     win.setAlwaysOnTop(true, "floating", 1);
@@ -35,17 +36,14 @@ export function applyStealth(win: BrowserWindow): void {
   win.setFocusable(false);
 }
 
-export function setPrivateMode(win: BrowserWindow, enabled: boolean): void {
-  if (!win.isDestroyed()) {
-    win.setContentProtection(enabled);
-  }
-}
+// Content protection must NEVER be disabled — no toggle function exposed
 
 export function setClickThrough(win: BrowserWindow, enabled: boolean): void {
   if (!win.isDestroyed()) {
     win.setIgnoreMouseEvents(enabled, { forward: true });
     win.setFocusable(!enabled);
     win.setSkipTaskbar(true);
+    win.setContentProtection(true); // Always re-assert after state change
   }
 }
 
