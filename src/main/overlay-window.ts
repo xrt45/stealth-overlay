@@ -32,6 +32,15 @@ export function createOverlayWindow(): BrowserWindow {
     },
   });
 
+  // Grant microphone permission for Web Speech API
+  win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === "media") {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
   return win;
 }
 

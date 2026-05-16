@@ -22,6 +22,8 @@ export interface AppSettings {
   openaiModel: string;
   anthropicApiKey: string;
   anthropicModel: string;
+  githubModelsToken: string;
+  githubModelsModel: string;
   startAtLogin: boolean;
 }
 
@@ -37,7 +39,7 @@ const defaults: AppSettings = {
   screenshotInterval: 10,
   primaryLanguage: "English",
   languages: ["English"],
-  providerPriority: ["ollama", "gemini", "groq", "openai", "anthropic"],
+  providerPriority: ["github", "gemini", "groq", "ollama", "openai", "anthropic"],
   ollamaBaseUrl: "http://localhost:11434",
   ollamaTextModel: "llama3.1:8b",
   ollamaVisionModel: "llava:7b",
@@ -47,6 +49,8 @@ const defaults: AppSettings = {
   openaiModel: "gpt-4o-mini",
   anthropicApiKey: "",
   anthropicModel: "claude-sonnet-4-20250514",
+  githubModelsToken: "",
+  githubModelsModel: "gpt-4o",
   startAtLogin: false,
 };
 

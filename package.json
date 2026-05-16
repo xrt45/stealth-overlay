@@ -4,7 +4,7 @@
   "description": "AI-powered stealth overlay assistant",
   "main": "dist/main/main.js",
   "scripts": {
-    "clean": "rm -rf dist",
+    "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\"",
     "build:main": "tsc -p tsconfig.main.json",
     "build:preload": "tsc -p tsconfig.preload.json",
     "build:renderer": "node esbuild.renderer.mjs",

@@ -1,5 +1,6 @@
 import { AIProvider, ChatMessage } from "./types";
 import { getSetting } from "../settings";
+import { net } from "electron";
 
 export class OllamaProvider implements AIProvider {
   name = "ollama";
@@ -9,49 +10,30 @@ export class OllamaProvider implements AIProvider {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+      const res = await net.fetch(`${this.baseUrl}/api/tags`);
       return res.ok;
     } catch { return false; }
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    const res = await net.fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: this.textModel, messages, stream: false }),
     });
     const data = await res.json() as any;
+    if (data.error) throw new Error(data.error);
     return data.message?.content || "";
   }
 
   async chatStream(messages: ChatMessage[], onChunk: (chunk: string) => void): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: this.textModel, messages, stream: true }),
-    });
-    let full = "";
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const lines = decoder.decode(value, { stream: true }).split("\n").filter(Boolean);
-      for (const line of lines) {
-        try {
-          const json = JSON.parse(line);
-          if (json.message?.content) {
-            full += json.message.content;
-            onChunk(json.message.content);
-          }
-        } catch { /* skip malformed lines */ }
-      }
-    }
-    return full;
+    const answer = await this.chat(messages);
+    if (answer) onChunk(answer);
+    return answer;
   }
 
   async vision(imageBase64: string, prompt: string): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    const res = await net.fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -61,6 +43,7 @@ export class OllamaProvider implements AIProvider {
       }),
     });
     const data = await res.json() as any;
+    if (data.error) throw new Error(data.error);
     return data.message?.content || "";
   }
 }

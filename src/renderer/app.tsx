@@ -90,8 +90,8 @@ function useResize() {
     startPos.current = { x: e.clientX, y: e.clientY, w: panelW.value, h: panelH.value };
     const onMove = (ev: MouseEvent) => {
       if (!resizing.current) return;
-      panelW.value = Math.max(280, Math.min(800, startPos.current.w + (ev.clientX - startPos.current.x)));
-      panelH.value = Math.max(300, Math.min(window.innerHeight - 40, startPos.current.h + (ev.clientY - startPos.current.y)));
+      panelW.value = Math.max(250, startPos.current.w + (ev.clientX - startPos.current.x));
+      panelH.value = Math.max(200, startPos.current.h + (ev.clientY - startPos.current.y));
     };
     const onUp = () => {
       resizing.current = false;
@@ -105,11 +105,53 @@ function useResize() {
   };
   return { onMouseDown };
 }
+function ChatInput() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onSend = async () => {
+    const text = inputRef.current?.value?.trim();
+    if (!text) return;
+    inputRef.current!.value = "";
+    const msgId = addMessage("manual", text);
+    try {
+      const result = await gai?.askAI(text);
+      if (result) finishMessage(msgId, result.provider);
+    } catch { finishMessage(msgId, "error"); }
+  };
+  return (
+    <div style={{ display: "flex", gap: "6px", padding: "4px 14px 2px" }}>
+      <input
+        ref={inputRef}
+        placeholder="Ask AI anything..."
+        onKeyDown={(e: any) => { if (e.key === "Enter") onSend(); }}
+        style={{
+          flex: 1, padding: "7px 10px", fontSize: "12px",
+          background: "rgba(255,255,255,0.08)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: "6px", color: "#eee", outline: "none",
+        }}
+      />
+      <button
+        onClick={onSend}
+        style={{
+          padding: "6px 12px", fontSize: "12px", fontWeight: 600,
+          background: "rgba(124,111,255,0.3)",
+          border: "1px solid rgba(124,111,255,0.5)",
+          borderRadius: "6px", color: "#fff", cursor: "pointer",
+        }}
+      >
+        Send
+      </button>
+    </div>
+  );
+}
+
 function App() {
   const drag = useDrag();
   const resize = useResize();
   return (
     <div
+      onMouseEnter={() => gai?.setFocusable(true)}
+      onMouseLeave={() => gai?.setFocusable(false)}
       style={{
         position: "fixed",
         left: panelX.value + "px",
@@ -143,7 +185,30 @@ function App() {
         <span style={{ color: "#7c6fff", fontWeight: "bold", fontSize: "14px" }}>
           {"\u{1F47B}"} Ghost AI
         </span>
-        <span style={{ fontSize: "9px", opacity: 0.3 }}>drag to move</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "9px", opacity: 0.3 }}>drag to move</span>
+          <button
+            onClick={() => gai?.quit()}
+            style={{
+              background: "rgba(255,80,80,0.15)",
+              border: "1px solid rgba(255,80,80,0.3)",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              cursor: "pointer",
+              color: "rgba(255,100,100,0.8)",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              lineHeight: 1,
+            }}
+            title="Close Ghost AI"
+          >
+            {"\u2715"}
+          </button>
+        </div>
       </div>
       {/* Messages Area */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 14px" }}>
@@ -155,6 +220,8 @@ function App() {
           <Settings />
         </div>
       )}
+      {/* Chat Input */}
+      <ChatInput />
       {/* Bottom Toolbar */}
       <div style={{ padding: "4px 14px 10px" }}>
         <ToolBar />

@@ -35,7 +35,7 @@ export function Messages() {
     return (
       <div style={{ padding: "16px 0", textAlign: "center", opacity: 0.35, fontSize: "12px" }}>
         No messages yet.<br />
-        Speak (Ctrl+Shift+V) or Screenshot (Ctrl+Shift+S) to start.
+        Type a question, use voice, or take a screenshot to start.
       </div>
     );
   }

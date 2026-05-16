@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("ghostAI", {
   // Window control
   setFocusable: (focusable: boolean) => ipcRenderer.invoke("window:set-focusable", focusable),
   closeSettings: () => ipcRenderer.invoke("window:close-settings"),
+  quit: () => ipcRenderer.invoke("app:quit"),
 
   // Events from main process
   on: (channel: string, callback: (...args: any[]) => void) => {

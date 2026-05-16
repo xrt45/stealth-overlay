@@ -4,6 +4,7 @@ import { GeminiProvider } from "./ai-providers/gemini";
 import { GroqProvider } from "./ai-providers/groq";
 import { OpenAIProvider } from "./ai-providers/openai";
 import { AnthropicProvider } from "./ai-providers/anthropic";
+import { GitHubModelsProvider } from "./ai-providers/github-models";
 import { getSetting } from "./settings";
 
 const providers: Record<string, AIProvider> = {
@@ -12,6 +13,7 @@ const providers: Record<string, AIProvider> = {
   groq: new GroqProvider(),
   openai: new OpenAIProvider(),
   anthropic: new AnthropicProvider(),
+  github: new GitHubModelsProvider(),
 };
 
 async function getAvailableProvider(): Promise<AIProvider | null> {
@@ -39,8 +41,11 @@ export async function askAI(
 ): Promise<{ answer: string; provider: string }> {
   const provider = await getAvailableProvider();
   if (!provider) {
-    return { answer: "❌ No AI provider available. Open Settings (Ctrl+K) to configure one.", provider: "none" };
+    const msg = "❌ No AI provider available. Click ⚙️ Settings to add an API key.";
+    if (onChunk) onChunk(msg);
+    return { answer: msg, provider: "none" };
   }
+  console.log(`[Ghost AI] Using provider: ${provider.name}`);
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt() },
     { role: "user", content: userPrompt },
@@ -51,7 +56,10 @@ export async function askAI(
       : await provider.chat(messages);
     return { answer, provider: provider.name };
   } catch (err: any) {
-    return { answer: `❌ Error from ${provider.name}: ${err.message}`, provider: provider.name };
+    console.error(`[Ghost AI] Error from ${provider.name}:`, err);
+    const errMsg = `❌ Error from ${provider.name}: ${err.message}`;
+    if (onChunk) onChunk(errMsg);
+    return { answer: errMsg, provider: provider.name };
   }
 }
 

@@ -51,13 +51,19 @@ function createWindow(): void {
   ipcMain.handle("window:set-focusable", (_e, focusable: boolean) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       setClickThrough(mainWindow, !focusable);
-      if (focusable) mainWindow.focus();
     }
   });
   ipcMain.handle("window:close-settings", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       setClickThrough(mainWindow, true);
     }
+  });
+
+  ipcMain.handle("app:quit", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.destroy();
+    }
+    app.quit();
   });
 
   // ─── AI IPC ───

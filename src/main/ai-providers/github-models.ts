@@ -2,17 +2,22 @@ import { AIProvider, ChatMessage } from "./types";
 import { getSetting } from "../settings";
 import { net } from "electron";
 
-export class OpenAIProvider implements AIProvider {
-  name = "openai";
-  private get apiKey() { return getSetting("openaiApiKey"); }
-  private get model() { return getSetting("openaiModel"); }
+const BASE_URL = "https://models.inference.ai.github.com";
 
-  async isAvailable(): Promise<boolean> { return !!this.apiKey; }
+export class GitHubModelsProvider implements AIProvider {
+  name = "github";
+  private get token() { return getSetting("githubModelsToken"); }
+  private get model() { return getSetting("githubModelsModel"); }
+
+  async isAvailable(): Promise<boolean> { return !!this.token; }
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const res = await net.fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await net.fetch(`${BASE_URL}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.token}`,
+      },
       body: JSON.stringify({ model: this.model, messages, stream: false }),
     });
     const data = await res.json() as any;
@@ -27,11 +32,14 @@ export class OpenAIProvider implements AIProvider {
   }
 
   async vision(imageBase64: string, prompt: string): Promise<string> {
-    const res = await net.fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await net.fetch(`${BASE_URL}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.token}`,
+      },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: this.model,
         messages: [{
           role: "user",
           content: [
@@ -46,4 +54,3 @@ export class OpenAIProvider implements AIProvider {
     return data.choices?.[0]?.message?.content || "";
   }
 }
-

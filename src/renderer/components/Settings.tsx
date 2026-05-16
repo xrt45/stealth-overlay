@@ -99,6 +99,13 @@ export function Settings() {
           placeholder="sk-ant-..." type="password" style={inputStyle} />
       </Section>
 
+      <Section title="🐙 GitHub Models (Free with GitHub)">
+        <input value={s.githubModelsToken} onInput={(e: any) => save("githubModelsToken", e.target.value)}
+          placeholder="GitHub PAT (ghp_...)" type="password" style={inputStyle} />
+        <input value={s.githubModelsModel} onInput={(e: any) => save("githubModelsModel", e.target.value)}
+          placeholder="gpt-4o" style={{ ...inputStyle, marginTop: "4px" }} />
+      </Section>
+
       <Section title="📸 Screenshot">
         <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
           <input type="checkbox" checked={s.screenshotEnabled}

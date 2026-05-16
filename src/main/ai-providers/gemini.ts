@@ -1,5 +1,6 @@
 import { AIProvider, ChatMessage } from "./types";
 import { getSetting } from "../settings";
+import { net } from "electron";
 
 export class GeminiProvider implements AIProvider {
   name = "gemini";
@@ -16,54 +17,34 @@ export class GeminiProvider implements AIProvider {
       }));
   }
 
-  async chat(messages: ChatMessage[]): Promise<string> {
+  private buildBody(messages: ChatMessage[]): any {
     const systemMsg = messages.find(m => m.role === "system");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
     const body: any = { contents: this.toGeminiMessages(messages) };
     if (systemMsg) body.systemInstruction = { parts: [{ text: systemMsg.content }] };
+    return body;
+  }
 
-    const res = await fetch(url, {
+  async chat(messages: ChatMessage[]): Promise<string> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
+    const res = await net.fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(this.buildBody(messages)),
     });
     const data = await res.json() as any;
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   }
 
   async chatStream(messages: ChatMessage[], onChunk: (chunk: string) => void): Promise<string> {
-    const systemMsg = messages.find(m => m.role === "system");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${this.apiKey}`;
-    const body: any = { contents: this.toGeminiMessages(messages) };
-    if (systemMsg) body.systemInstruction = { parts: [{ text: systemMsg.content }] };
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    let full = "";
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (line.startsWith("data: ")) {
-          try {
-            const json = JSON.parse(line.slice(6));
-            const chunk = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            if (chunk) { full += chunk; onChunk(chunk); }
-          } catch { /* skip */ }
-        }
-      }
-    }
-    return full;
+    const answer = await this.chat(messages);
+    if (answer) onChunk(answer);
+    return answer;
   }
 
   async vision(imageBase64: string, prompt: string): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
-    const res = await fetch(url, {
+    const res = await net.fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -77,6 +58,7 @@ export class GeminiProvider implements AIProvider {
       }),
     });
     const data = await res.json() as any;
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   }
 }

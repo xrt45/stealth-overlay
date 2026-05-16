@@ -97,12 +97,12 @@ export function ToolBar() {
           display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "6px",
           padding: "6px", background: "rgba(0,0,0,0.3)", borderRadius: "6px",
         }}>
-          {["ollama", "gemini", "groq", "openai", "anthropic"].map(p => (
+          {["github", "ollama", "gemini", "groq", "openai", "anthropic"].map(p => (
             <button
               key={p}
               onClick={() => {
                 activeProvider.value = p;
-                gai?.setSetting("providerPriority", [p, ...["ollama","gemini","groq","openai","anthropic"].filter(x => x !== p)]);
+                gai?.setSetting("providerPriority", [p, ...["github","ollama","gemini","groq","openai","anthropic"].filter(x => x !== p)]);
                 showProviderMenu.value = false;
               }}
               style={{

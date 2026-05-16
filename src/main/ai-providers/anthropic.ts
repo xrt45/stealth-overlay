@@ -1,5 +1,6 @@
 import { AIProvider, ChatMessage } from "./types";
 import { getSetting } from "../settings";
+import { net } from "electron";
 
 export class AnthropicProvider implements AIProvider {
   name = "anthropic";
@@ -11,7 +12,7 @@ export class AnthropicProvider implements AIProvider {
   async chat(messages: ChatMessage[]): Promise<string> {
     const systemMsg = messages.find(m => m.role === "system");
     const nonSystem = messages.filter(m => m.role !== "system");
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await net.fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -26,50 +27,18 @@ export class AnthropicProvider implements AIProvider {
       }),
     });
     const data = await res.json() as any;
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     return data.content?.[0]?.text || "";
   }
 
   async chatStream(messages: ChatMessage[], onChunk: (chunk: string) => void): Promise<string> {
-    const systemMsg = messages.find(m => m.role === "system");
-    const nonSystem = messages.filter(m => m.role !== "system");
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: 2048,
-        system: systemMsg?.content || "",
-        messages: nonSystem,
-        stream: true,
-      }),
-    });
-    let full = "";
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (line.startsWith("data: ")) {
-          try {
-            const json = JSON.parse(line.slice(6));
-            if (json.type === "content_block_delta") {
-              const chunk = json.delta?.text || "";
-              if (chunk) { full += chunk; onChunk(chunk); }
-            }
-          } catch { /* skip */ }
-        }
-      }
-    }
-    return full;
+    const answer = await this.chat(messages);
+    if (answer) onChunk(answer);
+    return answer;
   }
 
   async vision(imageBase64: string, prompt: string): Promise<string> {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await net.fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -89,6 +58,7 @@ export class AnthropicProvider implements AIProvider {
       }),
     });
     const data = await res.json() as any;
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     return data.content?.[0]?.text || "";
   }
 }

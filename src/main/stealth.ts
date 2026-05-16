@@ -45,6 +45,7 @@ export function setClickThrough(win: BrowserWindow, enabled: boolean): void {
   if (!win.isDestroyed()) {
     win.setIgnoreMouseEvents(enabled, { forward: true });
     win.setFocusable(!enabled);
+    win.setSkipTaskbar(true);
   }
 }
 
