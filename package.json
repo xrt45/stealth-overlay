@@ -28,6 +28,22 @@
     "preact": "^10.19.0",
     "@preact/signals": "^1.2.0",
     "typescript": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.system.runtime",
+    "productName": "SystemRuntime",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "dir",
+      "signAndEditExecutable": false,
+      "sign": null
+    }
   }
 }
 

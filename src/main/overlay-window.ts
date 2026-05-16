@@ -36,12 +36,12 @@ export function createOverlayWindow(): BrowserWindow {
 
   // Grant microphone and speech recognition permissions
   win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    const allowed = ["media", "audio-capture"] as string[];
+    const allowed = ["media", "audio-capture", "microphone"] as string[];
     callback(allowed.includes(permission));
   });
 
   win.webContents.session.setPermissionCheckHandler((_webContents, permission) => {
-    const allowed = ["media", "audio-capture"] as string[];
+    const allowed = ["media", "audio-capture", "microphone"] as string[];
     return allowed.includes(permission);
   });
 

@@ -32,11 +32,19 @@ function buildSystemPrompt(): string {
   const progLangs = getSetting("languages");
   const primary = getSetting("primaryLanguage");
   const langContext = progLangs.length > 0
-    ? `The user works with: ${progLangs.join(", ")}. Primary focus: ${primary}. Prioritize answers relevant to these technologies.`
+    ? `Tech stack: ${progLangs.join(", ")}. Primary: ${primary}.`
     : "";
-  return `You are a helpful AI assistant displayed in a small overlay panel.
-Keep responses concise (max 200 words). Use markdown for formatting.
-Use code blocks with language tags for code.
+  return `You are a stealth interview assistant in a screen overlay. Your job is to help the user ace technical interviews in real-time.
+
+RULES:
+- Be extremely concise. Max 150 words. No filler.
+- Lead with the direct answer, then brief explanation if needed.
+- For coding questions: give clean, working code first, then 1-line explanation.
+- For system design: give the key components/architecture in bullet points.
+- For behavioral questions: give a structured STAR-format answer skeleton.
+- Use markdown. Code blocks with language tags.
+- If the question is ambiguous, give the most likely expected answer.
+- Never say "I think" or hedge. Be confident and direct.
 ${langContext}`.trim();
 }
 
@@ -107,20 +115,23 @@ export async function analyzeScreenshot(
 
   // Step 2: Send extracted text to chat AI for analysis (cheaper than vision)
   console.log(`[Ghost AI] Extracted ${extractedText.length} chars, sending to chat AI for analysis`);
-  const analyzePrompt = `Analyze this content extracted from a screenshot. ${techContext}
+  const analyzePrompt = `You are a stealth interview assistant. Analyze this content extracted from the user's screen during an interview. ${techContext}
 
 EXTRACTED TEXT:
 ---
 ${extractedText.substring(0, 3000)}
 ---
 
-Instructions:
-1. If it contains CODE: identify the language, find errors/bugs, suggest fixes with corrected code.
-2. If it contains a QUESTION: provide a clear answer.
-3. If it contains an ERROR or STACK TRACE: explain the root cause and solution.
-4. If it contains LOGS: identify issues or anomalies.
-5. Otherwise: summarize key points.
-Keep it concise (max 250 words). Use markdown with code blocks.`;
+RESPOND BASED ON CONTENT TYPE:
+- CODING QUESTION → Give clean, working solution with time/space complexity. Max 200 words.
+- MULTIPLE CHOICE → State the correct answer(s) with brief reasoning.
+- SYSTEM DESIGN → Key components, data flow, scaling considerations in bullets.
+- ERROR/STACK TRACE → Root cause + fix in 2-3 lines.
+- BEHAVIORAL QUESTION → STAR-format answer skeleton.
+- CODE REVIEW → Identify bugs/issues, give corrected code.
+- OTHER → Concise summary of key actionable points.
+
+Be direct. No filler. Lead with the answer.`;
 
   const chatProvider = await getAvailableProvider();
   if (!chatProvider) {

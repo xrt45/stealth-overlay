@@ -9,7 +9,7 @@ import {
   isListeningVoice, primaryLanguage, languages, streamingMessageId,
   panelX, panelY, panelW, panelH, chatInputText, pendingVoiceSubmit, themeMode,
 } from "./state/store";
-import { startListening, stopListening } from "./hooks/useAudio";
+import { startListening, stopListening, toggleListening } from "./hooks/useAudio";
 const gai = (window as any).ghostAI;
 if (gai) {
   gai.on("overlay:opacity", (val: number) => { overlayOpacity.value = val; });
@@ -230,7 +230,6 @@ function App() {
         boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
         pointerEvents: "auto",
         overflow: "hidden",
-        cursor: "none",
       }}
     >
       {/* Drag Handle (Header) */}

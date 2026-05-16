@@ -39,6 +39,13 @@ function createWindow(): void {
 
   mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 
+  // Forward renderer console to main process terminal
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (message.includes("[Ghost AI]")) {
+      console.log(`[Renderer] ${message}`);
+    }
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
     unregisterShortcuts();
@@ -47,6 +54,10 @@ function createWindow(): void {
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
+    // Open DevTools in dev mode for debugging
+    if (process.argv.includes("--dev")) {
+      mainWindow?.webContents.openDevTools({ mode: "detach" });
+    }
   });
 
   // Register global shortcuts
@@ -114,49 +125,54 @@ function createWindow(): void {
   });
 
   // ─── Audio Transcription (Groq Whisper / OpenAI Whisper) ───
-  // Whisper hallucinations to reject (common on short/silent audio)
+  // Whisper hallucinations to reject (common on silent/noise-only audio)
   const HALLUCINATIONS = new Set([
-    "thank you", "thank you.", "thanks.", "thanks",
-    "hello", "hello.", "hi.", "hi", "hey.", "hey",
-    "yeah.", "yeah", "yes.", "yes", "no.", "no",
-    "bye.", "bye", "goodbye.", "goodbye",
-    "you", "you.", "the end.", "the end",
-    "okay.", "okay", "ok.", "ok",
-    "hmm.", "hmm", "um.", "um", "uh.", "uh",
-    "oh.", "oh", "ah.", "ah", "so.", "so",
-    "right.", "right", "sure.", "sure",
+    "thank you.", "thanks.",
+    "bye.", "goodbye.",
+    "the end.", "the end",
     "please subscribe.", "like and subscribe.",
     "see you next time.", "see you.",
-    "i'm sorry.", "sorry.", "excuse me.",
     "subtitles by the amara.org community",
     "music", "[music]", "(music)",
+    "you", "you.",
   ]);
 
   ipcMain.handle("audio:transcribe", async (_e, base64Audio: string) => {
-    const groqKey = sanitizeKey(getSetting("groqApiKey"));
+    const rawGroq = getSetting("groqApiKey");
+    const groqKey = sanitizeKey(rawGroq);
     const openaiKey = sanitizeKey(getSetting("openaiApiKey"));
     const ghToken = sanitizeKey(getSetting("githubModelsToken"));
 
+    console.log(`[Ghost AI] Transcription keys: groq="${groqKey?.substring(0,8)}..." (raw=${typeof rawGroq}/${rawGroq?.length}), openai=${!!(openaiKey && openaiKey.startsWith("sk-"))}, github=${!!ghToken}, audioLen=${base64Audio.length}`);
+
     let text = "";
+    let provider = "";
     try {
       if (groqKey) {
+        provider = "groq";
         text = await transcribeWithGroq(base64Audio, groqKey);
       } else if (openaiKey && openaiKey.startsWith("sk-")) {
+        provider = "openai";
         text = await transcribeWithOpenAI(base64Audio, openaiKey);
       } else if (ghToken) {
+        provider = "github";
         text = await transcribeWithGitHub(base64Audio, ghToken);
+      } else {
+        console.warn("[Ghost AI] No transcription API key available");
+        return "";
       }
     } catch (err: any) {
-      console.error("[Ghost AI] Transcription error:", err.message);
+      console.error(`[Ghost AI] Transcription error (${provider}):`, err.message);
       return "";
     }
 
     // Filter Whisper hallucinations
     const cleaned = text.trim();
     if (!cleaned || cleaned.length < 3 || HALLUCINATIONS.has(cleaned.toLowerCase())) {
-      console.log(`[Ghost AI] Filtered hallucination: "${cleaned}"`);
+      console.log(`[Ghost AI] Filtered (${provider}): "${cleaned}"`);
       return "";
     }
+    console.log(`[Ghost AI] Transcribed (${provider}): "${cleaned}"`);
     return cleaned;
   });
 }
@@ -183,10 +199,10 @@ async function transcribeWithOpenAI(base64Audio: string, apiKey: string): Promis
 
 async function transcribeWithGitHub(base64Audio: string, token: string): Promise<string> {
   return transcribeWithWhisperAPI(
-    "models.github.ai",
-    "/inference/audio/transcriptions",
+    "models.inference.ai.azure.com",
+    "/audio/transcriptions",
     token,
-    "openai/whisper-large-v3-turbo",
+    "whisper-large-v3-turbo",
     base64Audio
   );
 }
@@ -212,6 +228,9 @@ function transcribeWithWhisperAPI(
     ));
     formParts.push(Buffer.from(
       `--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\nen\r\n`
+    ));
+    formParts.push(Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="prompt"\r\n\r\nTechnical interview about programming, algorithms, system design, and software engineering.\r\n`
     ));
     formParts.push(Buffer.from(`--${boundary}--\r\n`));
 

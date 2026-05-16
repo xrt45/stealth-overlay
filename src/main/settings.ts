@@ -1,4 +1,6 @@
 import Store from "electron-store";
+import { app } from "electron";
+import * as path from "path";
 
 export interface AppSettings {
   isPrivate: boolean;
@@ -54,7 +56,10 @@ const defaults: AppSettings = {
   startAtLogin: false,
 };
 
-const store = new Store<AppSettings>({ defaults });
+const store = new Store<AppSettings>({
+  defaults,
+  cwd: path.join(process.env.APPDATA || app.getPath("userData"), "ghost-ai-overlay"),
+});
 
 // Migrate old "English" primaryLanguage to tech-focused default
 if (store.get("primaryLanguage") === "English") {
