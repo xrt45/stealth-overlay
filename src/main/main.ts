@@ -13,6 +13,9 @@ import * as path from "path";
 
 // Disguise process name in Task Manager
 app.setName("System Runtime");
+if (process.platform === "win32") {
+  app.setAppUserModelId("Microsoft.SystemRuntime");
+}
 
 let mainWindow: Electron.BrowserWindow | null = null;
 

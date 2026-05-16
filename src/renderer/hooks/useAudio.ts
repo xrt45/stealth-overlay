@@ -7,9 +7,9 @@ export const lastTranscription = signal("");
 const gai = (window as any).ghostAI;
 
 // VAD configuration
-const SILENCE_THRESHOLD = 0.015; // RMS energy below this = silence
-const SILENCE_DURATION_MS = 2000; // 2s of silence to stop
-const MIN_SPEECH_MS = 500; // minimum speech duration to transcribe
+const SILENCE_THRESHOLD = 0.01; // RMS energy below this = silence
+const SILENCE_DURATION_MS = 1500; // 1.5s of silence to stop
+const MIN_SPEECH_MS = 800; // minimum speech duration to transcribe
 
 let micStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
@@ -30,7 +30,11 @@ function getRMS(analyser: AnalyserNode): number {
 }
 
 function startRecording(): void {
-  if (!micStream || !micStream.active) return;
+  if (!micStream || !micStream.active) {
+    console.warn("[Ghost AI] Mic stream not active");
+    return;
+  }
+  console.log("[Ghost AI] Recording started");
   audioChunks = [];
   mediaRecorder = new MediaRecorder(micStream, { mimeType: "audio/webm" });
   mediaRecorder.ondataavailable = (e) => {
@@ -38,7 +42,11 @@ function startRecording(): void {
   };
   mediaRecorder.onstop = async () => {
     const duration = Date.now() - speechStart;
-    if (audioChunks.length === 0 || duration < MIN_SPEECH_MS) return;
+    console.log(`[Ghost AI] Recording stopped, duration: ${duration}ms, chunks: ${audioChunks.length}`);
+    if (audioChunks.length === 0 || duration < MIN_SPEECH_MS) {
+      console.log("[Ghost AI] Skipped: too short or no data");
+      return;
+    }
     const blob = new Blob(audioChunks, { type: "audio/webm" });
     audioChunks = [];
 
@@ -48,6 +56,7 @@ function startRecording(): void {
       if (!base64) { chatInputText.value = ""; return; }
       try {
         const text = await gai?.transcribeAudio(base64);
+        console.log(`[Ghost AI] Transcription result: "${text}"`);
         if (text && text.trim()) {
           chatInputText.value = text.trim();
           lastTranscription.value = text.trim();
@@ -62,7 +71,7 @@ function startRecording(): void {
     };
     reader.readAsDataURL(blob);
   };
-  mediaRecorder.start();
+  mediaRecorder.start(250); // collect data every 250ms
 }
 
 function stopRecording(): void {
@@ -74,10 +83,17 @@ function stopRecording(): void {
 
 function startVAD(): void {
   if (!analyserNode) return;
+  let logCounter = 0;
   vadInterval = setInterval(() => {
     if (!analyserNode || !isListening.value) return;
     const rms = getRMS(analyserNode);
     const now = Date.now();
+
+    // Log RMS every ~1s for debugging
+    logCounter++;
+    if (logCounter % 20 === 0) {
+      console.log(`[Ghost AI] RMS: ${rms.toFixed(4)}, speaking: ${isSpeaking}, threshold: ${SILENCE_THRESHOLD}`);
+    }
 
     if (rms > SILENCE_THRESHOLD) {
       // Speech detected
@@ -105,6 +121,7 @@ function startVAD(): void {
 export async function startListening(): Promise<void> {
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("[Ghost AI] Mic access granted, tracks:", micStream.getAudioTracks().map(t => t.label));
   } catch (e) {
     console.warn("Microphone access denied:", e);
     chatInputText.value = "";
@@ -113,6 +130,11 @@ export async function startListening(): Promise<void> {
   }
 
   audioContext = new AudioContext();
+  // AudioContext may start suspended in Chromium — must resume
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+    console.log("[Ghost AI] AudioContext resumed from suspended state");
+  }
   const source = audioContext.createMediaStreamSource(micStream);
   analyserNode = audioContext.createAnalyser();
   analyserNode.fftSize = 512;
@@ -121,6 +143,7 @@ export async function startListening(): Promise<void> {
   isListening.value = true;
   isSpeaking = false;
   silenceStart = 0;
+  console.log("[Ghost AI] VAD started, threshold:", SILENCE_THRESHOLD);
 
   startVAD();
 }

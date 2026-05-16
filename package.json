@@ -1,5 +1,6 @@
 {
   "name": "ghost-ai-overlay",
+  "productName": "SystemRuntime",
   "version": "1.0.0",
   "description": "AI-powered stealth overlay assistant",
   "main": "dist/main/main.js",
