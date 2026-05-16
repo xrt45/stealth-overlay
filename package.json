@@ -1,0 +1,32 @@
+{
+  "name": "ghost-ai-overlay",
+  "version": "1.0.0",
+  "description": "AI-powered stealth overlay assistant",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:preload": "tsc -p tsconfig.preload.json",
+    "build:renderer": "node esbuild.renderer.mjs",
+    "build": "npm run clean && npm run build:main && npm run build:preload && npm run build:renderer",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron . --dev",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.0",
+    "esbuild": "^0.19.11",
+    "preact": "^10.19.0",
+    "@preact/signals": "^1.2.0",
+    "typescript": "^5.3.3"
+  }
+}
+
